@@ -511,7 +511,7 @@ class MLP(Layer):
             # Update in layer
             dim_in_layers = lyr_dim
 
-        layers += [Linear(dim_in_layers, num_classes, **kw)]
+        layers.append(Linear(dim_in_layers, num_classes))
         # ========================
 
         self.sequence = Sequential(*layers)

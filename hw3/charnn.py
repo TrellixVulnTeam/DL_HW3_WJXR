@@ -18,12 +18,15 @@ def char_maps(text: str):
         represented by it. The reverse of the above map.
 
     """
-    # TODO:
     #  Create two maps as described in the docstring above.
     #  It's best if you also sort the chars before assigning indices, so that
     #  they're in lexical order.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    char_list = list(set(text))
+    char_list.sort()
+    index_list = range(len(char_list))
+    char_to_idx = dict(zip(char_list, index_list))
+    idx_to_char = dict(zip(index_list, char_list))
     # ========================
     return char_to_idx, idx_to_char
 
@@ -37,9 +40,12 @@ def remove_chars(text: str, chars_to_remove):
         - text_clean: the text after removing the chars.
         - n_removed: Number of chars removed.
     """
-    # TODO: Implement according to the docstring.
+    # Implement according to the docstring.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    text_clean = text
+    for char in chars_to_remove:
+        text_clean = text_clean.replace(char, '')
+    n_removed = len(text) - len(text_clean)
     # ========================
     return text_clean, n_removed
 
@@ -57,9 +63,12 @@ def chars_to_onehot(text: str, char_to_idx: dict) -> Tensor:
     and D is the number of unique chars in the sequence. The dtype of the
     returned tensor will be torch.int8.
     """
-    # TODO: Implement the embedding.
+    # Implement the embedding.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    shape = (len(text), len(char_to_idx))
+    result = torch.zeros(shape, dtype=torch.int8)
+    for idx, char in enumerate(text):
+        result[idx, char_to_idx[char]] = 1
     # ========================
     return result
 
@@ -76,7 +85,10 @@ def onehot_to_chars(embedded_text: Tensor, idx_to_char: dict) -> str:
     """
     # TODO: Implement the reverse-embedding.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    result = ''
+    idxs = torch.argmax(embedded_text, dim=1)
+    for i in idxs:
+        result += idx_to_char[i.item()]
     # ========================
     return result
 
@@ -97,15 +109,23 @@ def chars_to_labelled_samples(text: str, char_to_idx: dict, seq_len: int, device
     the number of created samples, S is the seq_len and V is the embedding
     dimension.
     """
-    # TODO:
-    #  Implement the labelled samples creation.
+    #  TODO: Implement the labelled samples creation.
     #  1. Embed the given text.
     #  2. Create the samples tensor by splitting to groups of seq_len.
     #     Notice that the last char has no label, so don't use it.
     #  3. Create the labels tensor in a similar way and convert to indices.
     #  Note that no explicit loops are required to implement this function.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    onehot = chars_to_onehot(text, char_to_idx).to(device)
+    labels = onehot[1:]
+    embedded = onehot[:-1]
+
+    embedded = embedded[:-(len(embedded) % seq_len)]
+    samples = embedded.reshape(-1, seq_len, len(char_to_idx))
+
+    labels = labels[:-(len(labels) % seq_len)]
+    labels = torch.argmax(labels, dim=1)
+    labels = labels.reshape((-1, seq_len))
     # ========================
     return samples, labels
 
@@ -119,9 +139,10 @@ def hot_softmax(y, dim=0, temperature=1.0):
     :param temperature: Temperature.
     :return: Softmax computed with the temperature parameter.
     """
-    # TODO: Implement based on the above.
+    # Implement based on the above.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    softmax_input = y / temperature
+    result = torch.softmax(input=softmax_input, dim=dim)
     # ========================
     return result
 
@@ -157,7 +178,17 @@ def generate_from_model(model, start_sequence, n_chars, char_maps, T):
     #  necessary for this. Best to disable tracking for speed.
     #  See torch.no_grad().
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    with torch.no_grad():
+        state = None
+        x = chars_to_onehot(start_sequence, char_to_idx).to(dtype=torch.float, device=device)
+        total_iterations = range(n_chars - len(start_sequence))
+        for iteration in total_iterations:
+            scores, state = model(x.unsqueeze(dim=0), hidden_state=state)
+            score_vec = scores[0, -1, :]
+            p = hot_softmax(score_vec, dim=0, temperature=T)
+            char = idx_to_char[torch.multinomial(p, 1).item()]
+            out_text += char
+            x = chars_to_onehot(char, char_to_idx).to(dtype=torch.float, device=device)
     # ========================
 
     return out_text
@@ -190,7 +221,14 @@ class SequenceBatchSampler(torch.utils.data.Sampler):
         #  you can drop it.
         idx = None  # idx should be a 1-d list of indices.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        total_samples = len(self.dataset) - (len(self.dataset) % self.batch_size)
+        mat = torch.arange(0, total_samples)
+        mat.reshape([self.batch_size, -1]).T.reshape(-1)
+        idx = mat.tolist()
+
+        idx2 = list(range(0, len(self.dataset) - len(self.dataset) % self.batch_size))
+
+        assert(idx == idx2)
         # ========================
         return iter(idx)
 
