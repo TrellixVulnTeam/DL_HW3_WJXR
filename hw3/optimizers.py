@@ -90,9 +90,10 @@ class MomentumSGD(Optimizer):
         self.reg = reg
         self.momentum = momentum
 
-        # TODO: Add your own initializations as needed.
+        # Add your own initializations as needed.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        self.grad = [0] * len(params)
+        self.i = 0
         # ========================
 
     def step(self):
@@ -100,11 +101,15 @@ class MomentumSGD(Optimizer):
             if dp is None:
                 continue
 
-            # TODO: Implement the optimizer step.
+            # Implement the optimizer step.
             # update the parameters tensor based on the velocity. Don't forget
             # to include the regularization term.
             # ====== YOUR CODE: ======
-            raise NotImplementedError()
+            dp += self.reg * p
+            self.grad[self.i] = self.momentum * self.grad[self.i] - dp * self.learn_rate
+            p += self.grad[self.i]
+            self.i += 1
+        self.i = 0
             # ========================
 
 
@@ -123,9 +128,10 @@ class RMSProp(Optimizer):
         self.decay = decay
         self.eps = eps
 
-        # TODO: Add your own initializations as needed.
+        # Add your own initializations as needed.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        self.rms = [0] * len(params)
+        self.i = 0
         # ========================
 
     def step(self):
@@ -133,10 +139,14 @@ class RMSProp(Optimizer):
             if dp is None:
                 continue
 
-            # TODO: Implement the optimizer step.
+            # Implement the optimizer step.
             # Create a per-parameter learning rate based on a decaying moving
             # average of it's previous gradients. Use it to update the
             # parameters tensor.
             # ====== YOUR CODE: ======
-            raise NotImplementedError()
+            self.rms[self.i] = self.decay * self.rms[self.i] + (dp**2) * (1 - self.decay)
+            p -= (self.learn_rate * dp) / ((self.rms[self.i] + self.eps) ** (1/2))
+            dp += self.reg * p
+            self.i += 1
+        self.i = 0
             # ========================

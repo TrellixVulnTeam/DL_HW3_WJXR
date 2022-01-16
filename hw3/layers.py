@@ -97,7 +97,7 @@ class LeakyReLU(Layer):
 
         # Implement gradient w.r.t. the input x
         # ====== YOUR CODE: ======
-        dx = dout * torch.where(self.alpha * x >= x, torch.ones(x.shape) * self.alpha, torch.ones(x.shape))
+        dx = dout * torch.where(x < 0, self.alpha, 1.0)
         # ========================
 
         return dx
@@ -116,7 +116,7 @@ class ReLU(LeakyReLU):
 
     def __init__(self):
         # ====== YOUR CODE: ======
-        super().__init__(0)
+        super().__init__(0.0)
         # ========================
 
     def __repr__(self):
@@ -142,7 +142,7 @@ class Sigmoid(Layer):
         # Implement the Sigmoid function.
         #  Save whatever you need into grad_cache.
         # ====== YOUR CODE: ======
-        out = self.grad_cache["out"] = (1 + torch.exp(-x))**-1
+        out = self.grad_cache["y"] = (1 + torch.exp(-x)) ** (-1)
         # ========================
 
         return out
@@ -155,8 +155,8 @@ class Sigmoid(Layer):
 
         # Implement gradient w.r.t. the input x
         # ====== YOUR CODE: ======
-        out = self.grad_cache["out"]
-        dx = dout * out * (1 - out)
+        y = self.grad_cache["y"]
+        dx = dout * y * (1 - y)
         # ========================
 
         return dx
@@ -185,7 +185,7 @@ class TanH(Layer):
         #  Save whatever you need into grad_cache.
         # ====== YOUR CODE: ======
         out = (torch.exp(x) - torch.exp(-x)) / (torch.exp(x) + torch.exp(-x))
-        self.grad_cache["out"] = out
+        self.grad_cache["y"] = out
         # ========================
 
         return out
@@ -198,7 +198,7 @@ class TanH(Layer):
 
         # Implement gradient w.r.t. the input x
         # ====== YOUR CODE: ======
-        dx = dout * (1 - torch.pow(self.grad_cache["out"], 2))
+        dx = dout * (1 - torch.pow(self.grad_cache["y"], 2))
         # ========================
 
         return dx
@@ -228,7 +228,7 @@ class Linear(Layer):
         # ====== YOUR CODE: ======
         shape = (out_features, in_features)
         self.w = torch.normal(mean=0, std=wstd, size=shape)
-        self.b = torch.normal(mean=torch.zeros(out_features), std=wstd)
+        self.b = torch.zeros(size=(out_features,))
         # ========================
 
         # These will store the gradients
@@ -334,9 +334,10 @@ class CrossEntropyLoss(Layer):
 
         # TODO: Calculate the gradient w.r.t. the input x.
         # ====== YOUR CODE: ======
-        result = (torch.exp(x) / torch.sum(torch.exp(x), dim=1).view(-1, 1))
-        result[range(N), y] -= 1
-        dx = result * dout / N
+        res = (torch.exp(x) / torch.sum(torch.exp(x), dim=1).view(-1, 1))
+        rng = range(N)
+        res[rng, y] -= 1
+        dx = res / N * dout
         # ========================
 
         return dx
@@ -502,7 +503,7 @@ class MLP(Layer):
         dim_in_layers = in_features
 
         for lyr_dim in hidden_features:
-            layers.append(Linear(dim_in_layers, lyr_dim))
+            layers.append(Linear(dim_in_layers, lyr_dim, **kw))
             layers.append(lyr_activation())
             # If exists append dropout layer
             if dropout > 0:
@@ -510,7 +511,7 @@ class MLP(Layer):
             # Update in layer
             dim_in_layers = lyr_dim
 
-        layers += [Linear(dim_in_layers, num_classes)]
+        layers += [Linear(dim_in_layers, num_classes, **kw)]
         # ========================
 
         self.sequence = Sequential(*layers)
