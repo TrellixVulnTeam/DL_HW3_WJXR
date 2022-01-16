@@ -39,9 +39,9 @@ An equation: $e^{i\pi} -1 = 0$
 
 def part2_overfit_hp():
     wstd, lr, reg = 0, 0, 0
-    # TODO: Tweak the hyperparameters until you overfit the small dataset.
+    # Tweak the hyperparameters until you overfit the small dataset.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    wstd, lr, reg = 0.09, 0.07847, 0.011
     # ========================
     return dict(wstd=wstd, lr=lr, reg=reg)
 

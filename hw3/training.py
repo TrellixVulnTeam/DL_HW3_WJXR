@@ -223,20 +223,29 @@ class Trainer(abc.ABC):
 class LayerTrainer(Trainer):
     def __init__(self, model, loss_fn, optimizer):
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        super().__init__(model=model)
+        self.loss_fn = loss_fn
+        self.optimizer = optimizer
         # ========================
 
     def train_batch(self, batch) -> BatchResult:
         X, y = batch
 
-        # TODO: Train the Layer model on one batch of data.
+        # Train the Layer model on one batch of data.
         #  - Forward pass
         #  - Backward pass
         #  - Optimize params
         #  - Calculate number of correct predictions (make sure it's an int,
         #    not a tensor) as num_correct.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        self.optimizer.zero_grad()
+        forward_pass = self.model.forward(X.reshape(X.size(0), -1))
+        self.model.backward(self.loss_fn.backward())
+        self.optimizer.step()
+        loss = self.loss_fn(forward_pass, y).item()
+        num_correct = torch.sum(torch.eq(
+            torch.argmax(forward_pass.data, 1), y
+        ).float()).item()
         # ========================
 
         return BatchResult(loss, num_correct)
