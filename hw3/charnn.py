@@ -1,3 +1,4 @@
+import collections
 import re
 import torch
 import torch.nn as nn
@@ -221,14 +222,9 @@ class SequenceBatchSampler(torch.utils.data.Sampler):
         #  you can drop it.
         idx = None  # idx should be a 1-d list of indices.
         # ====== YOUR CODE: ======
-        total_samples = len(self.dataset) - (len(self.dataset) % self.batch_size)
-        mat = torch.arange(0, total_samples)
-        mat.reshape([self.batch_size, -1]).T.reshape(-1)
-        idx = mat.tolist()
-
-        idx2 = list(range(0, len(self.dataset) - len(self.dataset) % self.batch_size))
-
-        assert(idx == idx2)
+        idx = torch.arange(0, len(self.dataset) - (len(self.dataset) % self.batch_size))
+        idx.reshape([self.batch_size, -1])
+        idx = list(idx.T.reshape(-1))
         # ========================
         return iter(idx)
 
@@ -275,8 +271,33 @@ class MultilayerGRU(nn.Module):
         #      then call self.register_parameter() on them. Also make
         #      sure to initialize them. See functions in torch.nn.init.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
-        # ========================
+        shape = collections.defaultdict(self.h_dim)
+        shape[0] = self.in_dim
+        option = {2: 'z', 5: 'r', 8: 'g'}
+
+        for i in range(n_layers):
+            layer_params = []
+            for j in range(3):
+                layer_params.append(torch.nn.Linear(shape[i], self.h_dim, bias=False))
+                layer_params.append(torch.nn.Linear(self.h_dim, self.h_dim, bias=False))
+                layer_params.append(torch.nn.Parameter(torch.zeros((1, self.h_dim))))
+
+            layer_length = len(layer_params)
+            for idx in range(layer_length):
+                mod3 = (idx + 1) % 3
+                if mod3 == 0:
+                    torch.nn.init.normal_(layer_params[idx])
+                    self.register_parameter('l_' + str(i) + '_' + option[idx], layer_params[idx])
+                else:
+                    self.add_module('l_' + str(i) + 'W_' + str(idx), layer_params[idx])
+
+            self.layer_params.append(layer_params)
+
+        linear = torch.nn.Linear(self.h_dim, self.out_dim)
+        self.fout = [linear]
+        self.add_module('out', self.fout[0])
+
+    # ========================
 
     def forward(self, input: Tensor, hidden_state: Tensor = None):
         """
@@ -307,12 +328,28 @@ class MultilayerGRU(nn.Module):
         layer_input = input
         layer_output = None
 
-        # TODO:
+        # TODO NEEDS WORK:
         #  Implement the model's forward pass.
         #  You'll need to go layer-by-layer from bottom to top (see diagram).
         #  Tip: You can use torch.stack() to combine multiple tensors into a
         #  single tensor in a differentiable manner.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        layer_output = []
+        temp_layer = []
+        for i in range(seq_len):
+            in_layer = layer_input[:, i, :]
+            for j, params in enumerate(self.layer_params):
+                temp_layer = []
+                x, z, b, r, h, br, g, hg, bg = params
+                state = layer_states[-self.n_layers + j]
+                zt = torch.sigmoid(x(in_layer) + z(state) + b)
+                ht = zt * state + (1 - zt) * torch.tanh(g(in_layer) + hg(torch.sigmoid(r(in_layer) + h(state) + br) * state) + bg)
+                temp_layer.append(ht)
+                in_layer = torch.nn.functional.dropout(ht, p=self.dropout)
+            layer_states += temp_layer
+            f, = self.fout
+            layer_output.append(f(in_layer))
+        layer_output = torch.stack(layer_output, dim=1)
+        hidden_state = torch.stack(layer_states[-self.n_layers:], dim=1)
         # ========================
         return layer_output, hidden_state
