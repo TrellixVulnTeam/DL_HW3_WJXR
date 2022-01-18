@@ -9,28 +9,45 @@ math (delimited with $$).
 # Part 1 answers
 
 part1_q1 = r"""
-**Your answer:**
 
+### 1 ###
 
-Write your answer using **markdown** and $\LaTeX$:
-```python
-# A code block
-a = 2
-```
-An equation: $e^{i\pi} -1 = 0$
+i)
+The Jacobian tensor will be in shape of (in_features, N) * (out_features, N)
+= (1024, 64) * (512, 64) = (1024, 64, 512, 64)
 
+ii)
+Yes, each sample is i.i.d from the 64 samples we have, so the derivative for the input 0,i to output 0,j = 0.
+Because of that most of the elements in the Jacobian tensor will be zeros, 1024 * 512 * 64 * 63 = 2,113,929,216.
+
+iii)
+No. $\delta\mat{Y}*\pderiv{Y}{\mat{X}}$ = ($\delta\mat{X}$) is a known fact but we can
+use the fact that $\pderiv{Y}{\mat{X}}$ = W which we have calculated
+
+### 2 ###
+
+i)
+The Jacobian tensor will be in shape of W * X =
+= (1024, 64) * (512, 64) = (1024, 64, 512, 1024)
+
+ii)
+Yes, for the same reason as the previous part. The derivative for the input 0,i to output 0,j = 0.
+
+iii)
+No. Just like the previous part, we will calculate ($\delta\mat{W}$) that
+is the same as $\delta\mat{Y}*\pderiv{Y}{\mat{W}} = dot(\delta\mat{Y}, X)$
 """
 
 part1_q2 = r"""
 **Your answer:**
 
+There are algorithms that don't require back-propagation or any  derivative at all.
+For example: https://link.springer.com/article/10.1007%2Fs10898-012-9951-y
 
-Write your answer using **markdown** and $\LaTeX$:
-```python
-# A code block
-a = 2
-```
-An equation: $e^{i\pi} -1 = 0$
+However, as noted in their abstract "We find that the ability of all these 
+solvers to obtain good solutions diminishes with increasing problem size."
+
+So, it seems that still GD with back-propagation is better for complex problems.
 
 """
 # ==============
@@ -109,15 +126,31 @@ see an increase to the loss and to the accuracy.
 """
 
 part2_q3 = r"""
-**Your answer:**
 
+1) Back propagation and GD are two separate things.
+GD is a an iterative optimization algorithm for finding the local minimum of a differentiable function.
+While back-propagation computes the gradient of the loss function with respect to the weights of the
+network for a single input–output example, and does so efficiently.
 
-Write your answer using **markdown** and $\LaTeX$:
-```python
-# A code block
-a = 2
-```
-An equation: $e^{i\pi} -1 = 0$
+The main difference is that back-propagation refers only to the algorithm for computing the gradient
+not how the gradient is used. GD refers to the algorithm that uses the gradient in a certain way.
+
+2) In both gradient descent and stochastic gradient descent, you
+update a set of parameters in an iterative manner to minimize an error function.
+
+While in GD, you have to run through all the samples in your training set to do a 
+single update for a parameter in a particular iteration, in SGD, on the other hand, you use a random subset 
+of training sample from your training set to do the update for a parameter in a particular iteration.
+
+3) SGD is more likely to get out of a local minimum since every random subset can have a slightly different
+loss space. Also, SGD is faster since we use a smaller subset where in GD we use all of the training set.
+
+4)
+
+i) To calculate the backward-pass 
+
+ii) For the backward stage we need to save in the memory the gradient results in the forward stage,
+so even tough we split the data we need to save too much gradients simultaneously.  
 
 """
 # ==============
