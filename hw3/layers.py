@@ -268,10 +268,8 @@ class Linear(Layer):
         #  Note: You should ACCUMULATE gradients in dw and db.
         # ====== YOUR CODE: ======
         dx = torch.matmul(dout, self.w)
-        dw_addition = torch.matmul(dout.T, x)
-        db_addition = torch.matmul(dout.T, torch.ones(dout.shape[0]))
-        self.dw = self.dw + dw_addition
-        self.db = self.db + db_addition
+        self.dw += torch.matmul(dout.T, x)
+        self.db += torch.matmul(dout.T, torch.ones(dout.shape[0]))
         # ========================
 
         return dx

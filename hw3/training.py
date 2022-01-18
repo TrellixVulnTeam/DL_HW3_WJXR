@@ -316,20 +316,25 @@ class TorchTrainer(Trainer):
 class RNNTrainer(Trainer):
     def __init__(self, model, loss_fn, optimizer, device=None):
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        super().__init__(model, device)
+        self.loss_fn = loss_fn
+        self.optimizer = optimizer
+        self.current_hidden = None
         # ========================
 
     def train_epoch(self, dl_train: DataLoader, **kw):
-        # TODO: Implement modifications to the base method, if needed.
+        # Implement modifications to the base method, if needed.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        # Reset current hidden
+        self.current_hidden = None
         # ========================
         return super().train_epoch(dl_train, **kw)
 
     def test_epoch(self, dl_test: DataLoader, **kw):
-        # TODO: Implement modifications to the base method, if needed.
+        # Implement modifications to the base method, if needed.
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        # Reset current hidden
+        self.current_hidden = None
         # ========================
         return super().test_epoch(dl_test, **kw)
 
@@ -339,7 +344,6 @@ class RNNTrainer(Trainer):
         y = y.to(self.device, dtype=torch.long)  # (B,S)
         seq_len = y.shape[1]
 
-        # TODO:
         #  Train the RNN model on one batch of data.
         #  - Forward pass
         #  - Calculate total loss over sequence
@@ -347,7 +351,23 @@ class RNNTrainer(Trainer):
         #  - Update params
         #  - Calculate number of correct char predictions
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        self.optimizer.zero_grad()
+        # forward pass
+        scores, hidden = self.model.forward(x, self.current_hidden)
+
+        # To device
+        hidden = hidden.to(self.device, dtype=torch.float)
+        scores = scores.to(self.device, dtype=torch.float)
+
+        loss = self.loss_fn(torch.transpose(scores, 1, 2), y)
+
+        # backwards pass
+        loss.backward()
+        y_predictions = torch.argmax(torch.transpose(scores, 1, 2), dim=1)
+
+        self.current_hidden = hidden.detach()
+        self.optimizer.step()
+        num_correct = torch.sum(y == y_predictions)
         # ========================
 
         # Note: scaling num_correct by seq_len because each sample has seq_len
@@ -361,13 +381,22 @@ class RNNTrainer(Trainer):
         seq_len = y.shape[1]
 
         with torch.no_grad():
-            # TODO:
             #  Evaluate the RNN model on one batch of data.
             #  - Forward pass
             #  - Loss calculation
             #  - Calculate number of correct predictions
-            # ====== YOUR CODE: ======
-            raise NotImplementedError()
+            # forward pass
+
+            scores, hidden = self.model.forward(x, self.current_hidden)
+
+            # To device
+            hidden = hidden.to(self.device, dtype=torch.float)
+            scores = scores.to(self.device, dtype=torch.float)
+
+            # Loss calc
+            y_predictions = torch.argmax(torch.transpose(scores, 1, 2), dim=1)
+            loss = self.loss_fn(scores, y)
+            num_correct = torch.sum(y_predictions == y)
             # ========================
 
         return BatchResult(loss.item(), num_correct.item() / seq_len)

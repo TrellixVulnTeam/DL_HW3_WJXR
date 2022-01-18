@@ -84,7 +84,7 @@ def onehot_to_chars(embedded_text: Tensor, idx_to_char: dict) -> str:
     :return: A string containing the text sequence represented by the
     embedding.
     """
-    # TODO: Implement the reverse-embedding.
+    # Implement the reverse-embedding.
     # ====== YOUR CODE: ======
     result = ''
     idxs = torch.argmax(embedded_text, dim=1)
@@ -110,7 +110,7 @@ def chars_to_labelled_samples(text: str, char_to_idx: dict, seq_len: int, device
     the number of created samples, S is the seq_len and V is the embedding
     dimension.
     """
-    #  TODO: Implement the labelled samples creation.
+    #  Implement the labelled samples creation.
     #  1. Embed the given text.
     #  2. Create the samples tensor by splitting to groups of seq_len.
     #     Notice that the last char has no label, so don't use it.
@@ -255,7 +255,7 @@ class MultilayerGRU(nn.Module):
         self.n_layers = n_layers
         self.layer_params = []
 
-        # TODO: Create the parameters of the model for all layers.
+        #  Create the parameters of the model for all layers.
         #  To implement the affine transforms you can use either nn.Linear
         #  modules (recommended) or create W and b tensor pairs directly.
         #  Create these modules or tensors and save them per-layer in
@@ -271,14 +271,16 @@ class MultilayerGRU(nn.Module):
         #      then call self.register_parameter() on them. Also make
         #      sure to initialize them. See functions in torch.nn.init.
         # ====== YOUR CODE: ======
-        shape = collections.defaultdict(self.h_dim)
-        shape[0] = self.in_dim
-        option = {2: 'z', 5: 'r', 8: 'g'}
+        self.dropout = dropout
+        opt = {2: 'z', 5: 'r', 8: 'g'}
 
         for i in range(n_layers):
             layer_params = []
             for j in range(3):
-                layer_params.append(torch.nn.Linear(shape[i], self.h_dim, bias=False))
+                shape = self.h_dim
+                if i == 0:
+                    shape = self.in_dim
+                layer_params.append(torch.nn.Linear(shape, self.h_dim, bias=False))
                 layer_params.append(torch.nn.Linear(self.h_dim, self.h_dim, bias=False))
                 layer_params.append(torch.nn.Parameter(torch.zeros((1, self.h_dim))))
 
@@ -287,7 +289,7 @@ class MultilayerGRU(nn.Module):
                 mod3 = (idx + 1) % 3
                 if mod3 == 0:
                     torch.nn.init.normal_(layer_params[idx])
-                    self.register_parameter('l_' + str(i) + '_' + option[idx], layer_params[idx])
+                    self.register_parameter('l_' + str(i) + '_' + opt[idx], layer_params[idx])
                 else:
                     self.add_module('l_' + str(i) + 'W_' + str(idx), layer_params[idx])
 
@@ -334,19 +336,20 @@ class MultilayerGRU(nn.Module):
         #  Tip: You can use torch.stack() to combine multiple tensors into a
         #  single tensor in a differentiable manner.
         # ====== YOUR CODE: ======
-        layer_output = []
-        temp_layer = []
+        dropout = self.dropout
+        layer_output = current_layer = []
         for i in range(seq_len):
             in_layer = layer_input[:, i, :]
-            for j, params in enumerate(self.layer_params):
-                temp_layer = []
-                x, z, b, r, h, br, g, hg, bg = params
-                state = layer_states[-self.n_layers + j]
-                zt = torch.sigmoid(x(in_layer) + z(state) + b)
-                ht = zt * state + (1 - zt) * torch.tanh(g(in_layer) + hg(torch.sigmoid(r(in_layer) + h(state) + br) * state) + bg)
-                temp_layer.append(ht)
-                in_layer = torch.nn.functional.dropout(ht, p=self.dropout)
-            layer_states += temp_layer
+            for current_layer, current_parameters in enumerate(self.layer_params):
+                current_layer = []
+                x, z, b, r, h, br, g, hg, bg = current_parameters
+                current_state = layer_states[current_layer - self.n_layers]
+                zt = torch.sigmoid(x(in_layer) + z(current_state) + b)
+                arg_tan = g(in_layer) + hg(torch.sigmoid(r(in_layer) + h(current_state) + br) * current_state) + bg
+                ht = zt * current_state + (1 - zt) * torch.tanh(arg_tan)
+                current_layer.append(ht)
+                in_layer = torch.nn.functional.dropout(ht, p=dropout)
+            layer_states.append(current_layer)
             f, = self.fout
             layer_output.append(f(in_layer))
         layer_output = torch.stack(layer_output, dim=1)
