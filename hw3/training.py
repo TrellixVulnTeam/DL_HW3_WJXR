@@ -353,10 +353,10 @@ class RNNTrainer(Trainer):
         # ====== YOUR CODE: ======
         self.optimizer.zero_grad()
         # forward pass
-        scores, hidden = self.model.forward(x, self.current_hidden)
+        scores, hidden_layers = self.model(x, self.current_hidden)
 
         # To device
-        hidden = hidden.to(self.device, dtype=torch.float)
+        hidden_layers = hidden_layers.to(self.device, dtype=torch.float)
         scores = scores.to(self.device, dtype=torch.float)
 
         loss = self.loss_fn(torch.transpose(scores, 1, 2), y)
@@ -365,9 +365,10 @@ class RNNTrainer(Trainer):
         loss.backward()
         y_predictions = torch.argmax(torch.transpose(scores, 1, 2), dim=1)
 
-        self.current_hidden = hidden.detach()
+        self.current_hidden = hidden_layers.detach()
         self.optimizer.step()
-        num_correct = torch.sum(y == y_predictions)
+        eq = torch.eq(y, y_predictions)
+        num_correct = torch.sum(eq)
         # ========================
 
         # Note: scaling num_correct by seq_len because each sample has seq_len
@@ -385,18 +386,19 @@ class RNNTrainer(Trainer):
             #  - Forward pass
             #  - Loss calculation
             #  - Calculate number of correct predictions
-            # forward pass
 
-            scores, hidden = self.model.forward(x, self.current_hidden)
+            # forward pass
+            scores, hidden = self.model(x, self.current_hidden)
 
             # To device
             hidden = hidden.to(self.device, dtype=torch.float)
             scores = scores.to(self.device, dtype=torch.float)
 
             # Loss calc
-            y_predictions = torch.argmax(torch.transpose(scores, 1, 2), dim=1)
+            scores = torch.transpose(scores, 1, 2)
+            y_predictions = torch.argmax(scores, dim=1)
             loss = self.loss_fn(scores, y)
-            num_correct = torch.sum(y_predictions == y)
+            num_correct = torch.sum(torch.eq(y, y_predictions))
             # ========================
 
         return BatchResult(loss.item(), num_correct.item() / seq_len)

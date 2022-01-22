@@ -147,7 +147,14 @@ loss space. Also, SGD is faster since we use a smaller subset where in GD we use
 
 4)
 
-i) To calculate the backward-pass 
+i) To calculate the backward-pass we need to sum vector jacobian producs
+to apply the chain rule. So, for the back-propagation to produce the gradient
+as the original GD we need the same VJP's. If we do multiple forward passes and
+save all the results (assume the results we need to save are far more light than
+the samples themself) we could save all what we need to do the back-propagation.
+
+If we don't have enough space we could also do some multiple sum iterations
+to do the backward stage. 
 
 ii) For the backward stage we need to save in the memory the gradient results in the forward stage,
 so even tough we split the data we need to save too much gradients simultaneously.  
@@ -172,13 +179,13 @@ def part3_rnn_hyperparams():
     )
     # Set the hyperparameters to train the model.
     # ====== YOUR CODE: ======
-    hypers['batch_size'] = 256
+    hypers['batch_size'] = 250
     hypers['seq_len'] = 50
     hypers['h_dim'] = 1000
     hypers['n_layers'] = 2
-    hypers['dropout'] = 0.2
-    hypers['learn_rate'] = 0.001
-    hypers['lr_sched_factor'] = 0.35
+    hypers['dropout'] = 0.19
+    hypers['learn_rate'] = 0.0011
+    hypers['lr_sched_factor'] = 0.351
     hypers['lr_sched_patience'] = 2
     # ========================
     return hypers
@@ -189,6 +196,8 @@ def part3_generation_params():
     temperature = 0.0005
     # Tweak the parameters to generate a literary masterpiece.
     # ====== YOUR CODE: ======
+    start_seq = "DUCHESS OF YORK:"
+    temperature = 0.411
     # ========================
     return start_seq, temperature
 

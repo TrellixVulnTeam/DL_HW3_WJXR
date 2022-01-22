@@ -184,12 +184,13 @@ def generate_from_model(model, start_sequence, n_chars, char_maps, T):
         x = chars_to_onehot(start_sequence, char_to_idx).to(dtype=torch.float, device=device)
         total_iterations = range(n_chars - len(start_sequence))
         for iteration in total_iterations:
-            scores, state = model(x.unsqueeze(dim=0), hidden_state=state)
+            scores, state = model(x.unsqueeze(dim=0), state)
             score_vec = scores[0, -1, :]
             p = hot_softmax(score_vec, dim=0, temperature=T)
             char = idx_to_char[torch.multinomial(p, 1).item()]
             out_text += char
             x = chars_to_onehot(char, char_to_idx).to(dtype=torch.float, device=device)
+
     # ========================
 
     return out_text
@@ -319,13 +320,13 @@ class MultilayerGRU(nn.Module):
         batch_size, seq_len, _ = input.shape
 
         layer_states = []
-        for i in range(self.n_layers):
+        for iter in range(self.n_layers):
             if hidden_state is None:
                 layer_states.append(
                     torch.zeros(batch_size, self.h_dim, device=input.device)
                 )
             else:
-                layer_states.append(hidden_state[:, i, :])
+                layer_states.append(hidden_state[:, iter, :])
 
         layer_input = input
         layer_output = None
@@ -335,24 +336,26 @@ class MultilayerGRU(nn.Module):
         #  You'll need to go layer-by-layer from bottom to top (see diagram).
         #  Tip: You can use torch.stack() to combine multiple tensors into a
         #  single tensor in a differentiable manner.
-        # ====== YOUR CODE: ======
-        dropout = self.dropout
-        layer_output = current_layer = []
-        for i in range(seq_len):
-            in_layer = layer_input[:, i, :]
-            for current_layer, current_parameters in enumerate(self.layer_params):
-                current_layer = []
-                x, z, b, r, h, br, g, hg, bg = current_parameters
-                current_state = layer_states[current_layer - self.n_layers]
-                zt = torch.sigmoid(x(in_layer) + z(current_state) + b)
-                arg_tan = g(in_layer) + hg(torch.sigmoid(r(in_layer) + h(current_state) + br) * current_state) + bg
-                ht = zt * current_state + (1 - zt) * torch.tanh(arg_tan)
-                current_layer.append(ht)
-                in_layer = torch.nn.functional.dropout(ht, p=dropout)
-            layer_states.append(current_layer)
+        # ====== YOUR CODE: ======f
+
+        layer_output = list()
+        tmp_lyr = list()
+        for iter in range(seq_len):
+            in_lyr = layer_input[:, iter, :]
+            for i, parameters in enumerate(self.layer_params):
+                x, z, b, r, h, br, g, hg, bg = parameters
+                tmp_lyr = []
+                state = layer_states[i - self.n_layers]
+                zt = torch.sigmoid(x(in_lyr) + z(state) + b)
+                tnh = torch.tanh(g(in_lyr) + hg(torch.sigmoid(r(in_lyr) + h(state) + br) * state) + bg)
+                ht = zt * state + (1 - zt) * tnh
+                tmp_lyr.append(ht)
+                in_lyr = torch.nn.functional.dropout(ht, p=self.dropout)
+            layer_states += tmp_lyr
             f, = self.fout
-            layer_output.append(f(in_layer))
+            layer_output.append(f(in_lyr))
         layer_output = torch.stack(layer_output, dim=1)
         hidden_state = torch.stack(layer_states[-self.n_layers:], dim=1)
+
         # ========================
         return layer_output, hidden_state
